@@ -15,6 +15,9 @@
 		await app.init({ resizeTo: canvas, backgroundAlpha: 0 });
 		canvas.replaceWith(app.canvas);
 
+		const { clientHeight: canvasHeight, clientWidth: canvasWidth } = canvasContainer;
+		const symbolSize = canvasWidth / columnsAmount;
+
 		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
 
 		const promises = pokemonList.map((pokemon) =>
@@ -31,9 +34,6 @@
 
 		new Array(columnsAmount).fill('').forEach((_, index) => {
 			const rc = new Container();
-			const { clientHeight: canvasHeight, clientWidth: canvasWidth } = canvasContainer;
-
-			const symbolSize = canvasWidth / columnsAmount;
 			const reelWidth = symbolSize;
 
 			rc.height = canvasHeight;
@@ -71,6 +71,57 @@
 			reels.push(reel);
 		});
 		app.stage.addChild(reelContainer);
+
+		app.ticker.add(() => {
+			// Update the slots.
+			for (let i = 0; i < reels.length; i++) {
+				const r = reels[i];
+				// Update blur filter y amount based on speed.
+				// This would be better if calculated with time in mind also. Now blur depends on frame rate.
+
+				r.blur.blurY = (r.position - r.previousPosition) * 8;
+				r.previousPosition = r.position;
+
+				// Update symbol positions on reel.
+				for (let j = 0; j < r.symbols.length; j++) {
+					const s = r.symbols[j];
+					const prevy = s.y;
+
+					s.y = ((r.position + j) % r.symbols.length) * symbolSize - symbolSize;
+					if (s.y < 0 && prevy > symbolSize) {
+						// Detect going over and swap a texture.
+						// This should in proper product be determined from some logical reel.
+						s.texture = slotTextures[Math.floor(Math.random() * slotTextures.length)];
+						s.scale.x = s.scale.y = Math.min(
+							symbolSize / s.texture.width,
+							symbolSize / s.texture.height
+						);
+						s.x = Math.round((symbolSize - s.width) / 2);
+					}
+				}
+			}
+		});
+
+		app.ticker.add(() => {
+			const now = Date.now();
+			const remove = [];
+
+			for (let i = 0; i < tweening.length; i++) {
+				const t = tweening[i];
+				const phase = Math.min(1, (now - t.start) / t.time);
+
+				t.object[t.property] = lerp(t.propertyBeginValue, t.target, t.easing(phase));
+				if (t.change) t.change(t);
+				if (phase === 1) {
+					t.object[t.property] = t.target;
+					if (t.complete) t.complete(t);
+					remove.push(t);
+				}
+			}
+			for (let i = 0; i < remove.length; i++) {
+				tweening.splice(tweening.indexOf(remove[i]), 1);
+			}
+		});
 	});
 
 	const tweening = [];
@@ -120,12 +171,19 @@
 		}
 	}
 
-	function backout(amount) {
-		return (t) => --t * t * ((amount + 1) * t + amount) + 1;
-	}
-
 	function reelsComplete() {
 		running = false;
+	}
+
+	// Basic lerp funtion.
+	function lerp(a1, a2, t) {
+		return a1 * (1 - t) + a2 * t;
+	}
+
+	// Backout function from tweenjs.
+	// https://github.com/CreateJS/TweenJS/blob/master/src/tweenjs/Ease.js
+	function backout(amount) {
+		return (t) => --t * t * ((amount + 1) * t + amount) + 1;
 	}
 </script>
 
@@ -137,6 +195,8 @@
 		<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
 	</div>
 </div>
+
+<button on:click={startPlay}>spin</button>
 
 <svelte:window
 	on:resize={() =>
