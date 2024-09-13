@@ -15,10 +15,12 @@
 	} from 'pixi.js';
 
 	let canvas: HTMLCanvasElement;
+	let canvasContainer: HTMLDivElement;
+
+	const app = new Application();
 
 	onMount(async () => {
 		// Create a new application
-		const app = new Application();
 
 		// Initialize the application
 		await app.init({ background: '#1099bb', resizeTo: canvas });
@@ -36,12 +38,12 @@
 
 		const pokemonImages = await Promise.all(promises).then((results) => results);
 
-		// Load the textures
-		await Assets.load(pokemonImages);
-
 		const reelWidth = 80;
 		const symbolSize = 80;
 		const columnsAmount = 3;
+
+		// Load the textures
+		await Assets.load(pokemonImages);
 
 		// Create different slot symbols
 		const slotTextures = pokemonImages.map((image) => Texture.from(image));
@@ -265,5 +267,11 @@
 </script>
 
 <div class="h-full w-full center">
-	<canvas bind:this={canvas} class="bg-blue-500 w-1/2 h-1/2"></canvas>
+	<div class="bg-blue-500 w-1/2 h-1/2" bind:this={canvasContainer}>
+		<canvas bind:this={canvas} class="h-full w-full" />
+	</div>
 </div>
+
+<svelte:window
+	on:resize={() => app.renderer.resize(canvasContainer.clientWidth, canvasContainer.clientHeight)}
+/>
