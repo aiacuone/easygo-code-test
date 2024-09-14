@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { Application, Assets, BlurFilter, Container, Sprite, Texture } from 'pixi.js';
 	import { onMount } from 'svelte';
+	import type { Reel, Tween } from './types';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
-
 	const app = new Application();
-
-	const columnsAmount = 3;
 	const reelContainer = new Container();
-	const reels = [];
+	const columnsAmount = 3;
+	const reels: Reel[] = [];
 
 	onMount(async () => {
 		await app.init({ resizeTo: canvas, backgroundAlpha: 0 });
@@ -20,13 +19,13 @@
 
 		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
 
-		const promises = pokemonList.map((pokemon) =>
+		const pokemonImagePromises = pokemonList.map((pokemon) =>
 			fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon}`)
 				.then((response) => response.json())
 				.then((data) => data.sprites.front_default)
 		);
 
-		const pokemonImages = await Promise.all(promises).then((results) => results);
+		const pokemonImages = await Promise.all(pokemonImagePromises).then((results) => results);
 
 		await Assets.load(pokemonImages);
 
@@ -42,7 +41,7 @@
 
 			reelContainer.addChild(rc);
 
-			const reel = {
+			const reel: Reel = {
 				container: rc,
 				symbols: [],
 				position: 0,
@@ -54,6 +53,7 @@
 			reel.blur.blurY = 0;
 			rc.filters = [reel.blur];
 
+			// Build the symbols
 			for (let j = 0; j < 4; j++) {
 				const symbol = new Sprite(slotTextures[Math.floor(Math.random() * slotTextures.length)]);
 				// Scale the symbol to fit symbol area.
@@ -124,12 +124,20 @@
 		});
 	});
 
-	const tweening = [];
+	const tweening: Tween[] = [];
 
 	const backgroundImageSrc =
 		'https://wallpapers-clan.com/wp-content/uploads/2024/03/pokemon-bulbasaur-landscape-desktop-wallpaper-preview.jpg';
 
-	function tweenTo(object, property, target, time, easing, onchange, oncomplete) {
+	const tweenTo = (
+		object: Reel,
+		property: string,
+		target: number,
+		time: number,
+		easing,
+		onchange: ((t: number) => void) | null,
+		oncomplete: ((t: number) => void) | null
+	) => {
 		const tween = {
 			object,
 			property,
@@ -145,11 +153,11 @@
 		tweening.push(tween);
 
 		return tween;
-	}
+	};
 
 	let running = false;
 
-	function startPlay() {
+	const startPlay = () => {
 		if (running) return;
 		running = true;
 
@@ -169,22 +177,15 @@
 				i === reels.length - 1 ? reelsComplete : null
 			);
 		}
-	}
+	};
 
-	function reelsComplete() {
-		running = false;
-	}
+	const reelsComplete = () => (running = false);
 
 	// Basic lerp funtion.
-	function lerp(a1, a2, t) {
-		return a1 * (1 - t) + a2 * t;
-	}
+	const lerp = (a1: number, a2: number, t: number) => a1 * (1 - t) + a2 * t;
 
 	// Backout function from tweenjs.
-	// https://github.com/CreateJS/TweenJS/blob/master/src/tweenjs/Ease.js
-	function backout(amount) {
-		return (t) => --t * t * ((amount + 1) * t + amount) + 1;
-	}
+	const backout = (amount: number) => (t: number) => --t * t * ((amount + 1) * t + amount) + 1;
 </script>
 
 <div
