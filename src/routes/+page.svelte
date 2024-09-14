@@ -18,7 +18,7 @@
 	</div> -->
 
 	<!-- SINGLE -->
-	<div class="h-[500px] w-[500px] center">
+	<div class="h-[480px] w-[500px] center">
 		<Slot />
 	</div>
 </div>

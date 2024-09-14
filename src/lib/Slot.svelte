@@ -10,7 +10,7 @@
 	const reelContainer = new Container();
 	const columnsAmount = 3;
 	const reels: Reel[] = [];
-	let bettingAmounts = {
+	let bettingValues = {
 		win: 0,
 		bet: 0.5,
 		balance: 500000
@@ -181,7 +181,7 @@
 			);
 		}
 
-		bettingAmounts.balance -= bettingAmounts.bet;
+		bettingValues.balance = Number((bettingValues.balance - bettingValues.bet).toFixed(1));
 	};
 
 	const reelsComplete = () => (running = false);
@@ -194,28 +194,84 @@
 
 	const sideButtons = [
 		{
-			onClick: () => (bettingAmounts.bet += 0.5),
+			onClick: startPlay,
 			icon: '/reset.svg',
 			key: 'spin'
 		},
 		{
-			onClick: () => console.log('bet'),
+			onClick: () => (isChangingBet = !isChangingBet),
 			icon: '/coin-stack.svg',
 			key: 'bet'
 		}
 	];
+
+	let isChangingBet = false;
+
+	const getBettingAmounts = () => {
+		const series = [];
+
+		const addRange = (start: number, end: number, step: number) => {
+			for (let i = start; i <= end; i += step) {
+				series.push(parseFloat(i.toFixed(2)));
+			}
+		};
+
+		const ranges = [
+			[0.1, 1.0, 0.1],
+			[1.0 + 0.2, 3.0, 0.2],
+			[3.0 + 0.5, 5.0, 0.5],
+			[5.0 + 1.0, 10.0, 1.0],
+			[10.0 + 2.0, 20.0, 2.0]
+		];
+
+		ranges.forEach(([start, end, step]) => addRange(start, end, step));
+
+		series.push(25.0);
+
+		return series;
+	};
+	const bettingAmounts = getBettingAmounts();
+
+	const changeBettingAmount = (amount: number) => {
+		bettingValues.bet = amount;
+		isChangingBet = false;
+	};
 </script>
 
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
-	<div class="bg-black w-full h-full bg-opacity-50 rounded p-3 pr-10">
-		<div bind:this={canvasContainer} class="w-full h-full">
-			<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
+	<div>
+		<div class="bg-black w-full h-full bg-opacity-50 rounded p-5 pr-10 relative">
+			<div bind:this={canvasContainer} class="w-full h-full">
+				<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
+			</div>
+			{#if isChangingBet}
+				<div class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded p-1">
+					<button
+						on:click={() => (isChangingBet = false)}
+						class="text-white absolute right-2 top-2 border-2 border-white rounded px-2">X</button
+					>
+					<div class="stack gap-1 text-white text-center">
+						<p class="text-lg">Bet</p>
+						<p class="text-xs">Change your bet</p>
+						<div class="grid gap-2 grid-cols-6">
+							{#each bettingAmounts as amount}
+								<button
+									class="h-10 rounded border-2 border-white px-3 hover:bg-white hover:text-black"
+									on:click={() => changeBettingAmount(amount)}
+								>
+									{amount}
+								</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+			{/if}
 		</div>
-		<div class="w-full bg-white h-10 rounded hstack text-sm">
-			{#each Object.entries(bettingAmounts) as [key, value]}
+		<div class="w-full bg-white rounded hstack text-sm pb-[6px]">
+			{#each Object.entries(bettingValues) as [key, value]}
 				<div class="flex-1 stack">
-					<p class="text-center font-bold">{capitalize(key)}</p>
-					<p class="text-xs text-center">{value}</p>
+					<p class="text-center font-bold text-lg">{capitalize(key)}</p>
+					<p class="text-center">{value}</p>
 				</div>
 			{/each}
 		</div>
