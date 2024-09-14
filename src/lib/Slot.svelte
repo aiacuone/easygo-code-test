@@ -2,6 +2,7 @@
 	import { Application, Assets, BlurFilter, Container, Sprite, Texture } from 'pixi.js';
 	import { onMount } from 'svelte';
 	import type { Reel, Tween } from './types';
+	import { capitalize } from './utils';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
@@ -9,31 +10,36 @@
 	const reelContainer = new Container();
 	const columnsAmount = 3;
 	const reels: Reel[] = [];
+	let bettingAmounts = {
+		win: 0,
+		bet: 0.5,
+		balance: 500000
+	};
 
 	onMount(async () => {
 		await app.init({ resizeTo: canvas, backgroundAlpha: 0 });
 		canvas.replaceWith(app.canvas);
 
 		const { clientHeight: canvasHeight, clientWidth: canvasWidth } = canvasContainer;
-		const symbolSize = canvasWidth / columnsAmount;
+		const columnsWidth = canvasWidth / columnsAmount;
+		const symbolSize = columnsWidth;
 
+		// Get Textures
 		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
-
 		const pokemonImagePromises = pokemonList.map((pokemon) =>
 			fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon}`)
 				.then((response) => response.json())
-				.then((data) => data.sprites.front_default)
+				.then((data) => data.sprites.other.dream_world.front_default)
 		);
-
 		const pokemonImages = await Promise.all(pokemonImagePromises).then((results) => results);
 
+		// Load the textures
 		await Assets.load(pokemonImages);
-
 		const slotTextures = pokemonImages.map((image) => Texture.from(image));
 
 		new Array(columnsAmount).fill('').forEach((_, index) => {
 			const rc = new Container();
-			const reelWidth = symbolSize;
+			const reelWidth = columnsWidth;
 
 			rc.height = canvasHeight;
 			rc.width = canvasWidth / columnsAmount;
@@ -54,7 +60,7 @@
 			rc.filters = [reel.blur];
 
 			// Build the symbols
-			for (let j = 0; j < 4; j++) {
+			for (let j = 0; j < pokemonList.length; j++) {
 				const symbol = new Sprite(slotTextures[Math.floor(Math.random() * slotTextures.length)]);
 				// Scale the symbol to fit symbol area.
 
@@ -126,9 +132,6 @@
 
 	const tweening: Tween[] = [];
 
-	const backgroundImageSrc =
-		'https://wallpapers-clan.com/wp-content/uploads/2024/03/pokemon-bulbasaur-landscape-desktop-wallpaper-preview.jpg';
-
 	const tweenTo = (
 		object: Reel,
 		property: string,
@@ -177,6 +180,8 @@
 				i === reels.length - 1 ? reelsComplete : null
 			);
 		}
+
+		bettingAmounts.balance -= bettingAmounts.bet;
 	};
 
 	const reelsComplete = () => (running = false);
@@ -186,20 +191,45 @@
 
 	// Backout function from tweenjs.
 	const backout = (amount: number) => (t: number) => --t * t * ((amount + 1) * t + amount) + 1;
+
+	const sideButtons = [
+		{
+			onClick: () => (bettingAmounts.bet += 0.5),
+			icon: '/reset.svg',
+			key: 'spin'
+		},
+		{
+			onClick: () => console.log('bet'),
+			icon: '/coin-stack.svg',
+			key: 'bet'
+		}
+	];
 </script>
 
-<div
-	class="w-full h-full py-10 pr-10 pl-3 bg-red-500 rounded bg-center bg-cover"
-	style={`background-image: url(${backgroundImageSrc})`}
->
-	<div bind:this={canvasContainer} class="bg-black w-full h-full bg-opacity-50 rounded">
-		<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
+<div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
+	<div class="bg-black w-full h-full bg-opacity-50 rounded p-3 pr-10">
+		<div bind:this={canvasContainer} class="w-full h-full">
+			<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
+		</div>
+		<div class="w-full bg-white h-10 rounded hstack text-sm">
+			{#each Object.entries(bettingAmounts) as [key, value]}
+				<div class="flex-1 stack">
+					<p class="text-center font-bold">{capitalize(key)}</p>
+					<p class="text-xs text-center">{value}</p>
+				</div>
+			{/each}
+		</div>
+	</div>
+	<div class="stack center gap-3">
+		{#each sideButtons as { onClick, icon, key }}
+			<button on:click={onClick} class="w-10 h-10 rounded-full bg-white center">
+				<img src={icon} alt={key} class="w-6 h-6" />
+			</button>
+		{/each}
 	</div>
 </div>
 
-<button on:click={startPlay}>spin</button>
-
-<svelte:window
+<!-- <svelte:window
 	on:resize={() =>
 		(reelContainer.children = reelContainer.children.map((rc) => {
 			rc.width = canvasContainer.clientWidth / columnsAmount;
@@ -208,4 +238,4 @@
 
 			return rc;
 		}))}
-/>
+/> -->
