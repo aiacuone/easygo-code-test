@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import type { Reel, Tween } from './types';
 	import { capitalize } from './utils';
+	import { derived, writable, type Writable } from 'svelte/store';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
@@ -172,12 +173,14 @@
 	const startPlay = () => {
 		if (running) return;
 		running = true;
+		$winResults = [];
+		bettingValues.win = 0;
 
 		for (let i = 0; i < reels.length; i++) {
 			const r = reels[i];
 			const extra = Math.floor(Math.random() * 3);
 			const target = r.position + 10 + i * columnsAmount + extra;
-			const time = 2500 + i * 600 + extra * 600;
+			const time = 300 + i * 600 + extra * 600;
 
 			tweenTo(
 				r,
@@ -195,7 +198,13 @@
 
 	const reelsComplete = () => {
 		running = false;
+		checkWin();
+	};
 
+	const winResults: Writable<{ pokemon: string; line: string }[]> = writable([]);
+	const isWinner = derived(winResults, ($winResults) => $winResults.length > 0);
+
+	const checkWin = () => {
 		const pokemonYPositionsAndColumns = reels.map((reel) => {
 			return reel.symbols
 				.map(({ pokemon, y }) => ({
@@ -204,10 +213,47 @@
 				})) // Get the pokemon names and y positions
 				.sort((a, b) => a.y - b.y) // Sort by y position
 				.filter((symbol) => symbol.y >= 0) // Filter out the hidden symbols
-				.map(({ pokemon }) => pokemon); // Get the pokemon names
-		});
+				.map(({ pokemon }) => pokemon); // Remove the y position and return only the pokemon names
+		}) as [string[], string[], string[]];
 
-		console.log({ pokemonYPositionsAndColumns });
+		const lineResults = pokemonYPositionsAndColumns.reduce(
+			(results, column, columnIndex) => {
+				const columnIndexString = columnIndex.toString();
+				column.forEach((pokemon, rowIndex) => {
+					const rowIndexString = rowIndex.toString();
+					results[rowIndexString].push(pokemon);
+
+					// Diagonal Results
+					if (columnIndex === rowIndex) results['02'].push(pokemon);
+
+					['20', '11', '02'].forEach((indexString) => {
+						if (columnIndexString + rowIndexString === indexString) results['20'].push(pokemon);
+					});
+				});
+				return results;
+			},
+			{ '0': [], '1': [], '2': [], '02': [], '20': [] }
+		);
+
+		const _winResults = Object.entries(lineResults)
+			.map(([line, result]) => {
+				const hasWon = result.every((pokemon) => pokemon === result[0]);
+				if (hasWon) return { line, pokemon: result[0] };
+			})
+			.filter(Boolean) as { line: string; pokemon: string }[];
+
+		const isWinner = _winResults.length > 0;
+
+		if (isWinner) {
+			$winResults = [..._winResults];
+			handleBet();
+		}
+	};
+
+	const handleBet = () => {
+		const winAmount = bettingValues.bet * $winResults.length;
+		bettingValues.win = winAmount;
+		bettingValues.balance = Number((bettingValues.balance + winAmount).toFixed(1));
 	};
 
 	// Basic lerp funtion.
@@ -265,6 +311,17 @@
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
 	<div>
 		<div class="bg-black w-full h-full bg-opacity-50 rounded p-5 pr-10 relative">
+			{#if $isWinner}
+				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded px-3 stack">
+					<p class="font-bold">Winner!</p>
+					{#each $winResults as winResult}
+						<div class="hstack gap-2">
+							<p><b>Line:</b> {winResult.line}</p>
+							<p><b>Pokemon:</b> {winResult.pokemon}</p>
+						</div>
+					{/each}
+				</div>
+			{/if}
 			<div bind:this={canvasContainer} class="w-full h-full">
 				<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
 			</div>
