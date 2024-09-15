@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Application, Assets, BlurFilter, Container, Sprite, Texture } from 'pixi.js';
 	import { onMount } from 'svelte';
-	import type { PokemonSprite, PokemonTexture, Reel, Tween } from './types';
-	import { capitalize } from './utils';
+	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../types';
+	import { capitalize } from '../utils';
 	import { derived, writable, type Writable } from 'svelte/store';
 
 	let canvas: HTMLCanvasElement;
@@ -221,7 +221,7 @@
 				.sort((a, b) => a.y - b.y) // Sort by y position
 				.filter((symbol) => symbol.y >= 0) // Filter out the hidden symbols
 				.map(({ pokemon }) => pokemon); // Remove the y position and return only the pokemon names
-		}) as [string[], string[], string[]];
+		});
 
 		const lineResults = pokemonYPositionsAndColumns.reduce(
 			(results, column, columnIndex) => {
@@ -318,6 +318,9 @@
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
 	<div>
 		<div class="bg-black w-full h-full bg-opacity-50 rounded p-5 pr-10 relative">
+			<div class="center absolute -top-9 left-0 h-10 w-full">
+				<img src="/pokemon-title.svg" alt="pokemon-title" class="h-[70px]" />
+			</div>
 			{#if $isWinner}
 				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded px-3 stack">
 					<p class="font-bold">Winner!</p>
@@ -364,22 +367,13 @@
 			{/each}
 		</div>
 	</div>
-	<div class="stack center gap-3">
-		{#each sideButtons as { onClick, icon, key }}
-			<button on:click={onClick} class="w-10 h-10 rounded-full bg-white center">
-				<img src={icon} alt={key} class="w-6 h-6" />
-			</button>
-		{/each}
+	<div class="relative">
+		<div class="stack center gap-3 h-full absolute -left-[20px] top-0">
+			{#each sideButtons as { onClick, icon, key }}
+				<button on:click={onClick} class="w-10 h-10 rounded-full bg-white center">
+					<img src={icon} alt={key} class="w-6 h-6" />
+				</button>
+			{/each}
+		</div>
 	</div>
 </div>
-
-<!-- <svelte:window
-	on:resize={() =>
-		(reelContainer.children = reelContainer.children.map((rc) => {
-			rc.width = canvasContainer.clientWidth / columnsAmount;
-			rc.height = canvasContainer.clientHeight;
-			rc.x = rc.width * Array.from(reelContainer.children).indexOf(rc);
-
-			return rc;
-		}))}
-/> -->
