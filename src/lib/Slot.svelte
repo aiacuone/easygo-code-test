@@ -23,19 +23,25 @@
 		const { clientHeight: canvasHeight, clientWidth: canvasWidth } = canvasContainer;
 		const columnsWidth = canvasWidth / columnsAmount;
 		const symbolSize = columnsWidth;
+		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
 
 		// Get Textures
-		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
-		const pokemonImagePromises = pokemonList.map((pokemon) =>
+		const pokemonsAndSpritesPromises = pokemonList.map((pokemon) =>
 			fetch(`https://pokeapi.co/api/v2/pokemon/${pokemon}`)
 				.then((response) => response.json())
-				.then((data) => data.sprites.other.dream_world.front_default)
+				.then((data) => ({ sprite: data.sprites.other.dream_world.front_default, pokemon }))
 		);
-		const pokemonImages = await Promise.all(pokemonImagePromises).then((results) => results);
+		const pokemonsAndSprites = await Promise.all(pokemonsAndSpritesPromises).then(
+			(results) => results
+		);
 
 		// Load the textures
-		await Assets.load(pokemonImages);
-		const slotTextures = pokemonImages.map((image) => Texture.from(image));
+		await Assets.load(pokemonsAndSprites.map(({ sprite }) => sprite));
+		const slotTextures = pokemonsAndSprites.map(({ sprite, pokemon }) => {
+			const texture = Texture.from(sprite);
+			texture.pokemon = pokemon;
+			return texture;
+		});
 
 		new Array(columnsAmount).fill('').forEach((_, index) => {
 			const rc = new Container();
@@ -97,7 +103,10 @@
 					if (s.y < 0 && prevy > symbolSize) {
 						// Detect going over and swap a texture.
 						// This should in proper product be determined from some logical reel.
-						s.texture = slotTextures[Math.floor(Math.random() * slotTextures.length)];
+						const randomTexture = slotTextures[Math.floor(Math.random() * slotTextures.length)];
+						//Texture being changed here, therefore pokemon is also changed
+						s.texture = randomTexture;
+						s.pokemon = randomTexture.pokemon;
 						s.scale.x = s.scale.y = Math.min(
 							symbolSize / s.texture.width,
 							symbolSize / s.texture.height
@@ -184,7 +193,22 @@
 		bettingValues.balance = Number((bettingValues.balance - bettingValues.bet).toFixed(1));
 	};
 
-	const reelsComplete = () => (running = false);
+	const reelsComplete = () => {
+		running = false;
+
+		const pokemonYPositionsAndColumns = reels.map((reel) => {
+			return reel.symbols
+				.map(({ pokemon, y }) => ({
+					pokemon,
+					y
+				})) // Get the pokemon names and y positions
+				.sort((a, b) => a.y - b.y) // Sort by y position
+				.filter((symbol) => symbol.y >= 0) // Filter out the hidden symbols
+				.map(({ pokemon }) => pokemon); // Get the pokemon names
+		});
+
+		console.log({ pokemonYPositionsAndColumns });
+	};
 
 	// Basic lerp funtion.
 	const lerp = (a1: number, a2: number, t: number) => a1 * (1 - t) + a2 * t;
