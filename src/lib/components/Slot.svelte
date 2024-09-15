@@ -4,6 +4,7 @@
 	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../types';
 	import { capitalize } from '../utils';
 	import { derived, writable, type Writable } from 'svelte/store';
+	import { arraysAreEqual } from '$lib/utils/arrays';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
@@ -182,6 +183,7 @@
 		running = true;
 		$winResults = [];
 		bettingValues.win = 0;
+		reels.forEach((reel) => reel.container.children.forEach((symbol) => (symbol.alpha = 1))); // Reset the symbols alpha
 
 		for (let i = 0; i < reels.length; i++) {
 			const r = reels[i];
@@ -212,21 +214,22 @@
 	const isWinner = derived(winResults, ($winResults) => $winResults.length > 0);
 
 	const checkWin = () => {
-		const pokemonYPositionsAndColumns = reels.map((reel) => {
+		const pokemonPositions = reels.map((reel, x) => {
 			return reel.symbols
-				.map(({ pokemon, y }) => ({
+				.map(({ pokemon, y: yPosition }) => ({
 					pokemon,
-					y
+					yPosition
 				})) // Get the pokemon names and y positions
-				.sort((a, b) => a.y - b.y) // Sort by y position
-				.filter((symbol) => symbol.y >= 0) // Filter out the hidden symbols
-				.map(({ pokemon }) => pokemon); // Remove the y position and return only the pokemon names
+				.sort((a, b) => a.yPosition - b.yPosition) // Sort by y position
+				.filter((symbol) => symbol.yPosition >= 0) // Filter out the hidden symbols
+				.map(({ yPosition, ...rest }, index) => ({ ...rest, coordinates: [x, index] })); // Remove y position
 		});
+		const _pokemonPositions = pokemonPositions.flat();
 
-		const lineResults = pokemonYPositionsAndColumns.reduce(
+		const lineWinResults = pokemonPositions.reduce(
 			(results, column, columnIndex) => {
 				const columnIndexString = columnIndex.toString();
-				column.forEach((pokemon, rowIndex) => {
+				column.forEach(({ pokemon }, rowIndex) => {
 					const rowIndexString = rowIndex.toString();
 					results[rowIndexString].push(pokemon);
 
@@ -242,7 +245,74 @@
 			{ '0': [], '1': [], '2': [], '02': [], '20': [] } as Record<string, string[]>
 		);
 
-		const _winResults = Object.entries(lineResults)
+		const lineCoordinates = [
+			[
+				[0, 0],
+				[1, 0],
+				[2, 0]
+			],
+			[
+				[0, 1],
+				[1, 1],
+				[2, 1]
+			],
+			[
+				[0, 2],
+				[1, 2],
+				[2, 2]
+			],
+			[
+				[0, 0],
+				[1, 1],
+				[2, 2]
+			],
+			[
+				[2, 0],
+				[1, 1],
+				[0, 2]
+			]
+		];
+
+		const pokemonAtLineCoordinates = lineCoordinates.map((line) =>
+			line.map(([x, y]) =>
+				_pokemonPositions.find(
+					(pokemon) => pokemon.coordinates[0] === x && pokemon.coordinates[1] === y
+				)
+			)
+		);
+
+		const winningLines = pokemonAtLineCoordinates.map((line) =>
+			line.every((pokemon) => pokemon?.pokemon === line[0]?.pokemon)
+		);
+
+		// const isThereALineThatWon = winningLines.some((hasWon) => hasWon);
+		const amountOfLinesThatWon = winningLines.filter(Boolean).length;
+		const isThereALineThatWon = !!amountOfLinesThatWon;
+
+		if (isThereALineThatWon) {
+			const allPossibleCoordinates = [];
+			for (let i = 0; i <= 2; i++) {
+				for (let j = 0; j <= 2; j++) {
+					allPossibleCoordinates.push([i, j]);
+				}
+			}
+
+			const winningCoordinates = pokemonAtLineCoordinates
+				.filter((line, index) => winningLines[index])
+				.flat()
+				.map(({ coordinates }) => coordinates);
+
+			const allLosingCoordinates = allPossibleCoordinates.filter(
+				(coordinates) =>
+					!winningCoordinates.some((winningCoordinate) =>
+						arraysAreEqual(winningCoordinate, coordinates)
+					)
+			);
+
+			handleCelebration(allLosingCoordinates);
+		}
+
+		const _winResults = Object.entries(lineWinResults)
 			.map(([line, result]) => {
 				const hasWon = result.every((pokemon) => pokemon === result[0]);
 				if (hasWon) return { line, pokemon: result[0] };
@@ -261,6 +331,20 @@
 		const winAmount = bettingValues.bet * $winResults.length;
 		bettingValues.win = winAmount;
 		bettingValues.balance = Number((bettingValues.balance + winAmount).toFixed(1));
+	};
+
+	const handleCelebration = (allLosingCoordinates: number[][]) => {
+		reels.forEach((reel, x) => {
+			reel.container.children
+				.sort((a, b) => a.y - b.y)
+				.filter((symbol) => symbol.y >= 0)
+				.forEach((texture, y) => {
+					const isLosingTexture = allLosingCoordinates.some((coordinates) =>
+						arraysAreEqual(coordinates, [x, y])
+					);
+					if (isLosingTexture) texture.alpha = 0.5;
+				});
+		});
 	};
 
 	// Basic lerp funtion.
