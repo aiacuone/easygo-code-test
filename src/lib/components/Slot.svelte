@@ -317,12 +317,12 @@
 
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
 	<div>
-		<div class="bg-black w-full h-full bg-opacity-50 rounded p-5 pr-10 relative">
+		<div class="bg-black w-full h-full bg-opacity-50 rounded-t-xl p-5 pr-10 relative">
 			<div class="center absolute -top-9 left-0 h-10 w-full">
 				<img src="/pokemon-title.svg" alt="pokemon-title" class="h-[70px]" />
 			</div>
 			{#if $isWinner}
-				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded px-3 stack">
+				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded-t-xl px-3 stack">
 					<p class="font-bold">Winner!</p>
 					{#each $winResults as winResult}
 						<div class="hstack gap-2">
@@ -333,10 +333,12 @@
 				</div>
 			{/if}
 			<div bind:this={canvasContainer} class="w-full h-full">
-				<canvas bind:this={canvas} class="h-full w-full rounded bg-black" />
+				<canvas bind:this={canvas} class="h-full w-full rounded-t-xl bg-black" />
 			</div>
 			{#if isChangingBet}
-				<div class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded p-1">
+				<div
+					class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded-t-xl p-1"
+				>
 					<button
 						on:click={() => (isChangingBet = false)}
 						class="text-white absolute right-2 top-2 border-2 border-white rounded px-2">X</button
@@ -358,7 +360,7 @@
 				</div>
 			{/if}
 		</div>
-		<div class="w-full bg-white rounded hstack text-sm pb-[6px]">
+		<div class="w-full bg-white rounded-b-xl hstack text-sm pb-[6px]">
 			{#each Object.entries(bettingValues) as [key, value]}
 				<div class="flex-1 stack">
 					<p class="text-center font-bold text-lg">{capitalize(key)}</p>
