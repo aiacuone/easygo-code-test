@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Application, Assets, BlurFilter, Container, Sprite, Texture } from 'pixi.js';
 	import { onMount } from 'svelte';
-	import type { Reel, Tween } from './types';
+	import type { PokemonSprite, PokemonTexture, Reel, Tween } from './types';
 	import { capitalize } from './utils';
 	import { derived, writable, type Writable } from 'svelte/store';
 
@@ -39,7 +39,7 @@
 		// Load the textures
 		await Assets.load(pokemonsAndSprites.map(({ sprite }) => sprite));
 		const slotTextures = pokemonsAndSprites.map(({ sprite, pokemon }) => {
-			const texture = Texture.from(sprite);
+			const texture = Texture.from(sprite) as PokemonTexture;
 			texture.pokemon = pokemon;
 			return texture;
 		});
@@ -68,7 +68,9 @@
 
 			// Build the symbols
 			for (let j = 0; j < pokemonList.length; j++) {
-				const symbol = new Sprite(slotTextures[Math.floor(Math.random() * slotTextures.length)]);
+				const symbol = new Sprite(
+					slotTextures[Math.floor(Math.random() * slotTextures.length)]
+				) as PokemonSprite;
 				// Scale the symbol to fit symbol area.
 
 				symbol.y = j * symbolSize;
@@ -97,7 +99,7 @@
 
 				// Update symbol positions on reel.
 				for (let j = 0; j < r.symbols.length; j++) {
-					const s = r.symbols[j];
+					const s = r.symbols[j] as PokemonSprite;
 					const prevy = s.y;
 
 					s.y = ((r.position + j) % r.symbols.length) * symbolSize - symbolSize;
@@ -125,11 +127,16 @@
 			for (let i = 0; i < tweening.length; i++) {
 				const t = tweening[i];
 				const phase = Math.min(1, (now - t.start) / t.time);
-
-				t.object[t.property] = lerp(t.propertyBeginValue, t.target, t.easing(phase));
+				// @ts-ignore. Typescript error due to dynamic object property.
+				(t.object as Reel)[t.property as keyof Reel] = lerp(
+					t.propertyBeginValue,
+					t.target,
+					t.easing(phase)
+				);
 				if (t.change) t.change(t);
 				if (phase === 1) {
-					t.object[t.property] = t.target;
+					// @ts-ignore. Typescript error due to dynamic object property.
+					(t.object as Reel)[t.property as keyof Reel] = t.target;
 					if (t.complete) t.complete(t);
 					remove.push(t);
 				}
@@ -147,14 +154,14 @@
 		property: string,
 		target: number,
 		time: number,
-		easing,
+		easing: (t: number) => number,
 		onchange: ((t: number) => void) | null,
 		oncomplete: ((t: number) => void) | null
 	) => {
-		const tween = {
+		const tween: Tween = {
 			object,
 			property,
-			propertyBeginValue: object[property],
+			propertyBeginValue: object[property as keyof Reel],
 			target,
 			easing,
 			time,
@@ -232,7 +239,7 @@
 				});
 				return results;
 			},
-			{ '0': [], '1': [], '2': [], '02': [], '20': [] }
+			{ '0': [], '1': [], '2': [], '02': [], '20': [] } as Record<string, string[]>
 		);
 
 		const _winResults = Object.entries(lineResults)

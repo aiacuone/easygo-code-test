@@ -1,8 +1,16 @@
-import type { BlurFilter, Container, ContainerChild, Sprite } from 'pixi.js';
+import type { BlurFilter, Container, ContainerChild, Sprite, Texture } from 'pixi.js';
+
+export interface PokemonSprite extends Sprite {
+	pokemon: string;
+}
+
+export interface PokemonTexture extends Texture {
+	pokemon: string;
+}
 
 export interface Reel {
 	container: Container<ContainerChild>;
-	symbols: Sprite[];
+	symbols: PokemonSprite[];
 	position: number;
 	previousPosition: number;
 	blur: BlurFilter;
