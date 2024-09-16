@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Slot from '$lib/components/Slot.svelte';
+	import Slot from '$lib/components/Slot/Slot.svelte';
 
 	const backgroundImageSrc =
 		'https://wallpapers-clan.com/wp-content/uploads/2024/03/pokemon-bulbasaur-landscape-desktop-wallpaper-preview.jpg';
