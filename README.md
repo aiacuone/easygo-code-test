@@ -2,7 +2,13 @@
 
 ## Initial Setup
 
-run npm i to install node modules
+Run `npm i` to install node modules.
+
+Run `npm run dev` to run the development server.
+
+Use `http://localhost:5173/` in browser to open development server in browser.
+
+Enjoy ;)
 
 ## Summary
 
