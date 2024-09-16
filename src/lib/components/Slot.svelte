@@ -181,9 +181,9 @@
 	const startPlay = () => {
 		if (running) return;
 		running = true;
-		$winResults = [];
 		bettingValues.win = 0;
 		reels.forEach((reel) => reel.container.children.forEach((symbol) => (symbol.alpha = 1))); // Reset the symbols alpha
+		hasWon = false;
 
 		for (let i = 0; i < reels.length; i++) {
 			const r = reels[i];
@@ -210,9 +210,6 @@
 		checkWin();
 	};
 
-	const winResults: Writable<{ pokemon: string; line: string }[]> = writable([]);
-	const isWinner = derived(winResults, ($winResults) => $winResults.length > 0);
-
 	const checkWin = () => {
 		const pokemonPositions = reels.map((reel, x) => {
 			return reel.symbols
@@ -224,26 +221,6 @@
 				.filter((symbol) => symbol.yPosition >= 0) // Filter out the hidden symbols
 				.map(({ yPosition, ...rest }, index) => ({ ...rest, coordinates: [x, index] })); // Remove y position
 		});
-		const _pokemonPositions = pokemonPositions.flat();
-
-		const lineWinResults = pokemonPositions.reduce(
-			(results, column, columnIndex) => {
-				const columnIndexString = columnIndex.toString();
-				column.forEach(({ pokemon }, rowIndex) => {
-					const rowIndexString = rowIndex.toString();
-					results[rowIndexString].push(pokemon);
-
-					// Diagonal Results
-					if (columnIndex === rowIndex) results['02'].push(pokemon);
-
-					['20', '11', '02'].forEach((indexString) => {
-						if (columnIndexString + rowIndexString === indexString) results['20'].push(pokemon);
-					});
-				});
-				return results;
-			},
-			{ '0': [], '1': [], '2': [], '02': [], '20': [] } as Record<string, string[]>
-		);
 
 		const lineCoordinates = [
 			[
@@ -275,9 +252,9 @@
 
 		const pokemonAtLineCoordinates = lineCoordinates.map((line) =>
 			line.map(([x, y]) =>
-				_pokemonPositions.find(
-					(pokemon) => pokemon.coordinates[0] === x && pokemon.coordinates[1] === y
-				)
+				pokemonPositions
+					.flat()
+					.find((pokemon) => pokemon.coordinates[0] === x && pokemon.coordinates[1] === y)
 			)
 		);
 
@@ -285,7 +262,6 @@
 			line.every((pokemon) => pokemon?.pokemon === line[0]?.pokemon)
 		);
 
-		// const isThereALineThatWon = winningLines.some((hasWon) => hasWon);
 		const amountOfLinesThatWon = winningLines.filter(Boolean).length;
 		const isThereALineThatWon = !!amountOfLinesThatWon;
 
@@ -310,25 +286,12 @@
 			);
 
 			handleCelebration(allLosingCoordinates);
-		}
-
-		const _winResults = Object.entries(lineWinResults)
-			.map(([line, result]) => {
-				const hasWon = result.every((pokemon) => pokemon === result[0]);
-				if (hasWon) return { line, pokemon: result[0] };
-			})
-			.filter(Boolean) as { line: string; pokemon: string }[];
-
-		const isWinner = _winResults.length > 0;
-
-		if (isWinner) {
-			$winResults = [..._winResults];
-			handleBet();
+			handleBet(amountOfLinesThatWon);
 		}
 	};
 
-	const handleBet = () => {
-		const winAmount = bettingValues.bet * $winResults.length;
+	const handleBet = (multiplier: number) => {
+		const winAmount = bettingValues.bet * multiplier;
 		bettingValues.win = winAmount;
 		bettingValues.balance = Number((bettingValues.balance + winAmount).toFixed(1));
 	};
@@ -342,9 +305,11 @@
 					const isLosingTexture = allLosingCoordinates.some((coordinates) =>
 						arraysAreEqual(coordinates, [x, y])
 					);
-					if (isLosingTexture) texture.alpha = 0.5;
+					if (isLosingTexture) texture.alpha = 0.2;
 				});
 		});
+
+		hasWon = true;
 	};
 
 	// Basic lerp funtion.
@@ -397,6 +362,8 @@
 		bettingValues.bet = amount;
 		isChangingBet = false;
 	};
+
+	let hasWon = false;
 </script>
 
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
@@ -405,20 +372,21 @@
 			<div class="center absolute -top-9 left-0 h-10 w-full">
 				<img src="/pokemon-title.svg" alt="pokemon-title" class="h-[70px]" />
 			</div>
-			{#if $isWinner}
-				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded-t-xl px-3 stack">
-					<p class="font-bold">Winner!</p>
-					{#each $winResults as winResult}
-						<div class="hstack gap-2">
-							<p><b>Line:</b> {winResult.line}</p>
-							<p><b>Pokemon:</b> {winResult.pokemon}</p>
-						</div>
-					{/each}
-				</div>
-			{/if}
 			<div bind:this={canvasContainer} class="w-full h-full">
 				<canvas bind:this={canvas} class="h-full w-full rounded-t-xl bg-black" />
 			</div>
+			{#if hasWon}
+				<div class="center w-full h-full absolute top-0 left-0 bg-black bg-opacity-10">
+					<div class="bg-white relative h-[50px] w-[230px] center rounded-lg">
+						<img
+							src="/pikachu-happy.svg"
+							alt="pikachu-happy"
+							class="h-[250px] absolute -left-[10px] -top-[30px]"
+						/>
+						<p class="bg-white px-5 rounded-lg text-3xl text-right w-full font-bold">WINNER!</p>
+					</div>
+				</div>
+			{/if}
 			{#if isChangingBet}
 				<div
 					class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded-t-xl p-1"
