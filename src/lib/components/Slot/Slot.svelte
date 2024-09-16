@@ -22,6 +22,9 @@
 	let isChangingBet = false;
 	let hasWon = false;
 	let running = false;
+	let slotSound: HTMLAudioElement;
+	let pikachuSound: HTMLAudioElement;
+	let isAudioOn = true;
 
 	onMount(async () => {
 		await app.init({ resizeTo: canvas, backgroundAlpha: 0 });
@@ -31,6 +34,8 @@
 		const columnsWidth = canvasWidth / columnsAmount;
 		const symbolSize = columnsWidth;
 		const pokemonList = ['bulbasaur', 'charmander', 'squirtle', 'pikachu'];
+		slotSound = new Audio('/slot-sound.mp3');
+		pikachuSound = new Audio('/pikachu-sound.mp3');
 
 		// Get Textures
 		const pokemonsAndSpritesPromises = pokemonList.map((pokemon) =>
@@ -181,6 +186,8 @@
 	const startPlay = () => {
 		if (running) return;
 
+		isAudioOn && slotSound.play();
+
 		// Return all to defaults
 		running = true;
 		bettingValues.win = 0;
@@ -271,6 +278,7 @@
 		const isThereALineThatWon = !!amountOfLinesThatWon;
 
 		if (isThereALineThatWon) {
+			isAudioOn && pikachuSound.play();
 			const allPossibleCoordinates = [];
 			for (let i = 0; i <= 2; i++) {
 				for (let j = 0; j <= 2; j++) {
@@ -354,7 +362,7 @@
 	</div>
 	<div class="relative">
 		<div class="stack center gap-3 h-full absolute -left-[20px] top-0">
-			<SideButtons {startPlay} bind:isChangingBet />
+			<SideButtons {startPlay} bind:isChangingBet bind:isAudioOn />
 		</div>
 	</div>
 </div>
