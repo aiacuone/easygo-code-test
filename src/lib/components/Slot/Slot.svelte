@@ -184,7 +184,7 @@
 	};
 
 	const startPlay = () => {
-		if (running) return;
+		if (running || isChangingBet) return;
 
 		isAudioOn && slotSound.play();
 
