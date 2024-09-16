@@ -3,7 +3,6 @@
 	import { onMount } from 'svelte';
 	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../types';
 	import { capitalize } from '../utils';
-	import { derived, writable, type Writable } from 'svelte/store';
 	import { arraysAreEqual } from '$lib/utils/arrays';
 
 	let canvas: HTMLCanvasElement;
@@ -92,8 +91,6 @@
 			// Update the slots.
 			for (let i = 0; i < reels.length; i++) {
 				const r = reels[i];
-				// Update blur filter y amount based on speed.
-				// This would be better if calculated with time in mind also. Now blur depends on frame rate.
 
 				r.blur.blurY = (r.position - r.previousPosition) * 8;
 				r.previousPosition = r.position;
@@ -106,7 +103,6 @@
 					s.y = ((r.position + j) % r.symbols.length) * symbolSize - symbolSize;
 					if (s.y < 0 && prevy > symbolSize) {
 						// Detect going over and swap a texture.
-						// This should in proper product be determined from some logical reel.
 						const randomTexture = slotTextures[Math.floor(Math.random() * slotTextures.length)];
 						//Texture being changed here, therefore pokemon is also changed
 						s.texture = randomTexture;
@@ -180,9 +176,11 @@
 
 	const startPlay = () => {
 		if (running) return;
+
+		// Return all to defaults
 		running = true;
 		bettingValues.win = 0;
-		reels.forEach((reel) => reel.container.children.forEach((symbol) => (symbol.alpha = 1))); // Reset the symbols alpha
+		reels.forEach((reel) => reel.container.children.forEach((symbol) => (symbol.alpha = 1)));
 		hasWon = false;
 
 		for (let i = 0; i < reels.length; i++) {
@@ -211,6 +209,7 @@
 	};
 
 	const checkWin = () => {
+		// Get all the pokemon x and y positions
 		const pokemonPositions = reels.map((reel, x) => {
 			return reel.symbols
 				.map(({ pokemon, y: yPosition }) => ({
@@ -222,6 +221,7 @@
 				.map(({ yPosition, ...rest }, index) => ({ ...rest, coordinates: [x, index] })); // Remove y position
 		});
 
+		// [x,y] coordinates for the lines that are considered a win
 		const lineCoordinates = [
 			[
 				[0, 0],
@@ -250,6 +250,7 @@
 			]
 		];
 
+		// Get all the pokemon at the line coordinates
 		const pokemonAtLineCoordinates = lineCoordinates.map((line) =>
 			line.map(([x, y]) =>
 				pokemonPositions
@@ -258,10 +259,10 @@
 			)
 		);
 
+		// Check all the lines that have won
 		const winningLines = pokemonAtLineCoordinates.map((line) =>
 			line.every((pokemon) => pokemon?.pokemon === line[0]?.pokemon)
 		);
-
 		const amountOfLinesThatWon = winningLines.filter(Boolean).length;
 		const isThereALineThatWon = !!amountOfLinesThatWon;
 
@@ -274,10 +275,11 @@
 			}
 
 			const winningCoordinates = pokemonAtLineCoordinates
-				.filter((line, index) => winningLines[index])
+				.filter((_, index) => winningLines[index])
 				.flat()
-				.map(({ coordinates }) => coordinates);
+				.map((pokemon) => pokemon?.coordinates);
 
+			// Get coordinates of all losing textures to dim them
 			const allLosingCoordinates = allPossibleCoordinates.filter(
 				(coordinates) =>
 					!winningCoordinates.some((winningCoordinate) =>
@@ -305,6 +307,7 @@
 					const isLosingTexture = allLosingCoordinates.some((coordinates) =>
 						arraysAreEqual(coordinates, [x, y])
 					);
+					// Dim the losing textures
 					if (isLosingTexture) texture.alpha = 0.2;
 				});
 		});
@@ -333,6 +336,7 @@
 
 	let isChangingBet = false;
 
+	// Get the betting amounts that can be selected
 	const getBettingAmounts = () => {
 		const series = [];
 
