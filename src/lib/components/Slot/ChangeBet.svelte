@@ -1,0 +1,33 @@
+<script lang="ts">
+	export let isChangingBet = false;
+	export let bettingValues = {
+		bet: 0,
+		win: 0,
+		balance: 0
+	};
+	export let bettingAmounts: number[] = [];
+
+	const changeBettingAmount = (amount: number) => {
+		bettingValues.bet = amount;
+		isChangingBet = false;
+	};
+</script>
+
+<button
+	on:click={() => (isChangingBet = false)}
+	class="text-white absolute right-2 top-2 border-2 border-white rounded px-2">X</button
+>
+<div class="stack gap-1 text-white text-center">
+	<p class="text-lg">Bet</p>
+	<p class="text-xs">Change your bet</p>
+	<div class="grid gap-2 grid-cols-6">
+		{#each bettingAmounts as amount}
+			<button
+				class="h-10 rounded border-2 border-white px-3 hover:bg-white hover:text-black"
+				on:click={() => changeBettingAmount(amount)}
+			>
+				{amount}
+			</button>
+		{/each}
+	</div>
+</div>

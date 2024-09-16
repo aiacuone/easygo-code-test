@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { Application, Assets, BlurFilter, Container, Sprite, Texture } from 'pixi.js';
 	import { onMount } from 'svelte';
-	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../types';
-	import { capitalize } from '../utils';
+	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../../types';
 	import { arraysAreEqual } from '$lib/utils/arrays';
+	import SideButtons from './SideButtons.svelte';
+	import BettingValues from './BettingValues.svelte';
+	import WinBanner from './WinBanner.svelte';
+	import ChangeBet from './ChangeBet.svelte';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
@@ -362,11 +365,6 @@
 	};
 	const bettingAmounts = getBettingAmounts();
 
-	const changeBettingAmount = (amount: number) => {
-		bettingValues.bet = amount;
-		isChangingBet = false;
-	};
-
 	let hasWon = false;
 </script>
 
@@ -381,57 +379,24 @@
 			</div>
 			{#if hasWon}
 				<div class="center w-full h-full absolute top-0 left-0 bg-black bg-opacity-10">
-					<div class="bg-white relative h-[50px] w-[230px] center rounded-lg">
-						<img
-							src="/pikachu-happy.svg"
-							alt="pikachu-happy"
-							class="h-[250px] absolute -left-[10px] -top-[30px]"
-						/>
-						<p class="bg-white px-5 rounded-lg text-3xl text-right w-full font-bold">WINNER!</p>
-					</div>
+					<WinBanner />
 				</div>
 			{/if}
 			{#if isChangingBet}
 				<div
 					class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded-t-xl p-1"
 				>
-					<button
-						on:click={() => (isChangingBet = false)}
-						class="text-white absolute right-2 top-2 border-2 border-white rounded px-2">X</button
-					>
-					<div class="stack gap-1 text-white text-center">
-						<p class="text-lg">Bet</p>
-						<p class="text-xs">Change your bet</p>
-						<div class="grid gap-2 grid-cols-6">
-							{#each bettingAmounts as amount}
-								<button
-									class="h-10 rounded border-2 border-white px-3 hover:bg-white hover:text-black"
-									on:click={() => changeBettingAmount(amount)}
-								>
-									{amount}
-								</button>
-							{/each}
-						</div>
-					</div>
+					<ChangeBet bind:isChangingBet bind:bettingValues {bettingAmounts} />
 				</div>
 			{/if}
 		</div>
 		<div class="w-full bg-white rounded-b-xl hstack text-sm pb-[6px]">
-			{#each Object.entries(bettingValues) as [key, value]}
-				<div class="flex-1 stack">
-					<p class="text-center font-bold text-lg">{capitalize(key)}</p>
-					<p class="text-center">{value}</p>
-				</div>
-			{/each}
+			<BettingValues {bettingValues} />
 		</div>
 	</div>
 	<div class="relative">
 		<div class="stack center gap-3 h-full absolute -left-[20px] top-0">
-			{#each sideButtons as { onClick, icon, key }}
-				<button on:click={onClick} class="w-10 h-10 rounded-full bg-white center">
-					<img src={icon} alt={key} class="w-6 h-6" />
-				</button>
-			{/each}
+			<SideButtons {sideButtons} />
 		</div>
 	</div>
 </div>
