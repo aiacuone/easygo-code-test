@@ -19,6 +19,9 @@
 		bet: 0.5,
 		balance: 500000
 	};
+	let isChangingBet = false;
+	let hasWon = false;
+	let running = false;
 
 	onMount(async () => {
 		await app.init({ resizeTo: canvas, backgroundAlpha: 0 });
@@ -175,8 +178,6 @@
 		return tween;
 	};
 
-	let running = false;
-
 	const startPlay = () => {
 		if (running) return;
 
@@ -323,49 +324,6 @@
 
 	// Backout function from tweenjs.
 	const backout = (amount: number) => (t: number) => --t * t * ((amount + 1) * t + amount) + 1;
-
-	const sideButtons = [
-		{
-			onClick: startPlay,
-			icon: '/reset.svg',
-			key: 'spin'
-		},
-		{
-			onClick: () => (isChangingBet = !isChangingBet),
-			icon: '/coin-stack.svg',
-			key: 'bet'
-		}
-	];
-
-	let isChangingBet = false;
-
-	// Get the betting amounts that can be selected
-	const getBettingAmounts = () => {
-		const series = [];
-
-		const addRange = (start: number, end: number, step: number) => {
-			for (let i = start; i <= end; i += step) {
-				series.push(parseFloat(i.toFixed(2)));
-			}
-		};
-
-		const ranges = [
-			[0.1, 1.0, 0.1],
-			[1.0 + 0.2, 3.0, 0.2],
-			[3.0 + 0.5, 5.0, 0.5],
-			[5.0 + 1.0, 10.0, 1.0],
-			[10.0 + 2.0, 20.0, 2.0]
-		];
-
-		ranges.forEach(([start, end, step]) => addRange(start, end, step));
-
-		series.push(25.0);
-
-		return series;
-	};
-	const bettingAmounts = getBettingAmounts();
-
-	let hasWon = false;
 </script>
 
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
@@ -386,7 +344,7 @@
 				<div
 					class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded-t-xl p-1"
 				>
-					<ChangeBet bind:isChangingBet bind:bettingValues {bettingAmounts} />
+					<ChangeBet bind:isChangingBet bind:bettingValues />
 				</div>
 			{/if}
 		</div>
@@ -396,7 +354,7 @@
 	</div>
 	<div class="relative">
 		<div class="stack center gap-3 h-full absolute -left-[20px] top-0">
-			<SideButtons {sideButtons} />
+			<SideButtons {startPlay} bind:isChangingBet />
 		</div>
 	</div>
 </div>

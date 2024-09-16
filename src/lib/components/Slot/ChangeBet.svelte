@@ -5,7 +5,32 @@
 		win: 0,
 		balance: 0
 	};
-	export let bettingAmounts: number[] = [];
+
+	// Get the betting amounts that can be selected
+	const getBettingAmounts = () => {
+		const series = [];
+
+		const addRange = (start: number, end: number, step: number) => {
+			for (let i = start; i <= end; i += step) {
+				series.push(parseFloat(i.toFixed(2)));
+			}
+		};
+
+		const ranges = [
+			[0.1, 1.0, 0.1],
+			[1.0 + 0.2, 3.0, 0.2],
+			[3.0 + 0.5, 5.0, 0.5],
+			[5.0 + 1.0, 10.0, 1.0],
+			[10.0 + 2.0, 20.0, 2.0]
+		];
+
+		ranges.forEach(([start, end, step]) => addRange(start, end, step));
+
+		series.push(25.0);
+
+		return series;
+	};
+	const bettingAmounts = getBettingAmounts();
 
 	const changeBettingAmount = (amount: number) => {
 		bettingValues.bet = amount;
