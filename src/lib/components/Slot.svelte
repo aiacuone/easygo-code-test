@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import type { PokemonSprite, PokemonTexture, Reel, Tween } from '../types';
 	import { capitalize } from '../utils';
-	import { derived, writable, type Writable } from 'svelte/store';
+	import { arraysAreEqual } from '$lib/utils/arrays';
 
 	let canvas: HTMLCanvasElement;
 	let canvasContainer: HTMLDivElement;
@@ -91,8 +91,6 @@
 			// Update the slots.
 			for (let i = 0; i < reels.length; i++) {
 				const r = reels[i];
-				// Update blur filter y amount based on speed.
-				// This would be better if calculated with time in mind also. Now blur depends on frame rate.
 
 				r.blur.blurY = (r.position - r.previousPosition) * 8;
 				r.previousPosition = r.position;
@@ -105,7 +103,6 @@
 					s.y = ((r.position + j) % r.symbols.length) * symbolSize - symbolSize;
 					if (s.y < 0 && prevy > symbolSize) {
 						// Detect going over and swap a texture.
-						// This should in proper product be determined from some logical reel.
 						const randomTexture = slotTextures[Math.floor(Math.random() * slotTextures.length)];
 						//Texture being changed here, therefore pokemon is also changed
 						s.texture = randomTexture;
@@ -179,9 +176,12 @@
 
 	const startPlay = () => {
 		if (running) return;
+
+		// Return all to defaults
 		running = true;
-		$winResults = [];
 		bettingValues.win = 0;
+		reels.forEach((reel) => reel.container.children.forEach((symbol) => (symbol.alpha = 1)));
+		hasWon = false;
 
 		for (let i = 0; i < reels.length; i++) {
 			const r = reels[i];
@@ -208,59 +208,111 @@
 		checkWin();
 	};
 
-	const winResults: Writable<{ pokemon: string; line: string }[]> = writable([]);
-	const isWinner = derived(winResults, ($winResults) => $winResults.length > 0);
-
 	const checkWin = () => {
-		const pokemonYPositionsAndColumns = reels.map((reel) => {
+		// Get all the pokemon x and y positions
+		const pokemonPositions = reels.map((reel, x) => {
 			return reel.symbols
-				.map(({ pokemon, y }) => ({
+				.map(({ pokemon, y: yPosition }) => ({
 					pokemon,
-					y
+					yPosition
 				})) // Get the pokemon names and y positions
-				.sort((a, b) => a.y - b.y) // Sort by y position
-				.filter((symbol) => symbol.y >= 0) // Filter out the hidden symbols
-				.map(({ pokemon }) => pokemon); // Remove the y position and return only the pokemon names
+				.sort((a, b) => a.yPosition - b.yPosition) // Sort by y position
+				.filter((symbol) => symbol.yPosition >= 0) // Filter out the hidden symbols
+				.map(({ yPosition, ...rest }, index) => ({ ...rest, coordinates: [x, index] })); // Remove y position
 		});
 
-		const lineResults = pokemonYPositionsAndColumns.reduce(
-			(results, column, columnIndex) => {
-				const columnIndexString = columnIndex.toString();
-				column.forEach((pokemon, rowIndex) => {
-					const rowIndexString = rowIndex.toString();
-					results[rowIndexString].push(pokemon);
+		// [x,y] coordinates for the lines that are considered a win
+		const lineCoordinates = [
+			[
+				[0, 0],
+				[1, 0],
+				[2, 0]
+			],
+			[
+				[0, 1],
+				[1, 1],
+				[2, 1]
+			],
+			[
+				[0, 2],
+				[1, 2],
+				[2, 2]
+			],
+			[
+				[0, 0],
+				[1, 1],
+				[2, 2]
+			],
+			[
+				[2, 0],
+				[1, 1],
+				[0, 2]
+			]
+		];
 
-					// Diagonal Results
-					if (columnIndex === rowIndex) results['02'].push(pokemon);
-
-					['20', '11', '02'].forEach((indexString) => {
-						if (columnIndexString + rowIndexString === indexString) results['20'].push(pokemon);
-					});
-				});
-				return results;
-			},
-			{ '0': [], '1': [], '2': [], '02': [], '20': [] } as Record<string, string[]>
+		// Get all the pokemon at the line coordinates
+		const pokemonAtLineCoordinates = lineCoordinates.map((line) =>
+			line.map(([x, y]) =>
+				pokemonPositions
+					.flat()
+					.find((pokemon) => pokemon.coordinates[0] === x && pokemon.coordinates[1] === y)
+			)
 		);
 
-		const _winResults = Object.entries(lineResults)
-			.map(([line, result]) => {
-				const hasWon = result.every((pokemon) => pokemon === result[0]);
-				if (hasWon) return { line, pokemon: result[0] };
-			})
-			.filter(Boolean) as { line: string; pokemon: string }[];
+		// Check all the lines that have won
+		const winningLines = pokemonAtLineCoordinates.map((line) =>
+			line.every((pokemon) => pokemon?.pokemon === line[0]?.pokemon)
+		);
+		const amountOfLinesThatWon = winningLines.filter(Boolean).length;
+		const isThereALineThatWon = !!amountOfLinesThatWon;
 
-		const isWinner = _winResults.length > 0;
+		if (isThereALineThatWon) {
+			const allPossibleCoordinates = [];
+			for (let i = 0; i <= 2; i++) {
+				for (let j = 0; j <= 2; j++) {
+					allPossibleCoordinates.push([i, j]);
+				}
+			}
 
-		if (isWinner) {
-			$winResults = [..._winResults];
-			handleBet();
+			const winningCoordinates = pokemonAtLineCoordinates
+				.filter((_, index) => winningLines[index])
+				.flat()
+				.map((pokemon) => pokemon?.coordinates);
+
+			// Get coordinates of all losing textures to dim them
+			const allLosingCoordinates = allPossibleCoordinates.filter(
+				(coordinates) =>
+					!winningCoordinates.some((winningCoordinate) =>
+						arraysAreEqual(winningCoordinate, coordinates)
+					)
+			);
+
+			handleCelebration(allLosingCoordinates);
+			handleBet(amountOfLinesThatWon);
 		}
 	};
 
-	const handleBet = () => {
-		const winAmount = bettingValues.bet * $winResults.length;
+	const handleBet = (multiplier: number) => {
+		const winAmount = bettingValues.bet * multiplier;
 		bettingValues.win = winAmount;
 		bettingValues.balance = Number((bettingValues.balance + winAmount).toFixed(1));
+	};
+
+	const handleCelebration = (allLosingCoordinates: number[][]) => {
+		reels.forEach((reel, x) => {
+			reel.container.children
+				.sort((a, b) => a.y - b.y)
+				.filter((symbol) => symbol.y >= 0)
+				.forEach((texture, y) => {
+					const isLosingTexture = allLosingCoordinates.some((coordinates) =>
+						arraysAreEqual(coordinates, [x, y])
+					);
+					// Dim the losing textures
+					if (isLosingTexture) texture.alpha = 0.2;
+				});
+		});
+
+		hasWon = true;
 	};
 
 	// Basic lerp funtion.
@@ -284,6 +336,7 @@
 
 	let isChangingBet = false;
 
+	// Get the betting amounts that can be selected
 	const getBettingAmounts = () => {
 		const series = [];
 
@@ -313,6 +366,8 @@
 		bettingValues.bet = amount;
 		isChangingBet = false;
 	};
+
+	let hasWon = false;
 </script>
 
 <div class="w-full h-full py-10 pr-10 pl-3 rounded hstack">
@@ -321,20 +376,21 @@
 			<div class="center absolute -top-9 left-0 h-10 w-full">
 				<img src="/pokemon-title.svg" alt="pokemon-title" class="h-[70px]" />
 			</div>
-			{#if $isWinner}
-				<div class="absolute -top-[50px] left-0 center w-full bg-green-500 rounded-t-xl px-3 stack">
-					<p class="font-bold">Winner!</p>
-					{#each $winResults as winResult}
-						<div class="hstack gap-2">
-							<p><b>Line:</b> {winResult.line}</p>
-							<p><b>Pokemon:</b> {winResult.pokemon}</p>
-						</div>
-					{/each}
-				</div>
-			{/if}
 			<div bind:this={canvasContainer} class="w-full h-full">
 				<canvas bind:this={canvas} class="h-full w-full rounded-t-xl bg-black" />
 			</div>
+			{#if hasWon}
+				<div class="center w-full h-full absolute top-0 left-0 bg-black bg-opacity-10">
+					<div class="bg-white relative h-[50px] w-[230px] center rounded-lg">
+						<img
+							src="/pikachu-happy.svg"
+							alt="pikachu-happy"
+							class="h-[250px] absolute -left-[10px] -top-[30px]"
+						/>
+						<p class="bg-white px-5 rounded-lg text-3xl text-right w-full font-bold">WINNER!</p>
+					</div>
+				</div>
+			{/if}
 			{#if isChangingBet}
 				<div
 					class="absolute center w-full h-full bg-black bg-opacity-80 left-0 top-0 rounded-t-xl p-1"
